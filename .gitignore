@@ -1,4 +1,5 @@
 target/
+tasks.db
 .DS_Store
 *.class
 *.jar
