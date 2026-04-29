@@ -4,13 +4,18 @@
 
 You have 6 Java files. Here's what each one does and how they connect:
 
+```mermaid
+graph LR
+    A[main.java<br/>Entry Point] -->|launches| B[TaskManagerApp.java<br/>JavaFX GUI]
+    B -->|uses| C[Taskmanger.java<br/>Business Logic]
+    B -->|uses| D[Databasemanger.java<br/>SQLite JDBC]
+    C -->|manages| E[Task.java<br/>Data Object]
+    D -->|reads/writes| E
+    C -->|throws| F[InvalidTaskException.java<br/>Custom Error]
+    D -->|reads/writes| G[(tasks.db<br/>SQLite File)]
 ```
-main.java  -->  TaskManagerApp.java  -->  Taskmanger.java  -->  Databasemanger.java
-(launches)       (the window/GUI)        (business logic)      (saves to SQLite DB)
-                                                |
-                                         Task.java  (the data object)
-                                         InvalidTaskException.java  (custom error)
-```
+
+In plain English: `main` launches the GUI window. The GUI talks to `Taskmanger` for logic and `Databasemanger` for saving/loading. Both of them work with `Task` objects.
 
 ### File-by-file breakdown
 
@@ -88,6 +93,39 @@ The `e ->` is a lambda (shorthand for an anonymous function). The code inside `{
 
 In our app, the Add button's handler: reads the text fields, creates a Task, saves it to the DB, and refreshes the list.
 
+### What happens when you click "Add Task"
+
+This is the full flow — from click to saved in the database:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant GUI as TaskManagerApp<br/>(GUI)
+    participant TM as Taskmanger<br/>(Logic)
+    participant DB as Databasemanger<br/>(Database)
+    participant SQLite as tasks.db
+
+    User->>GUI: clicks "Add Task"
+    GUI->>GUI: reads name & description from text fields
+    GUI->>TM: addTask(task)
+    TM->>TM: checks if name is empty
+    alt name is empty
+        TM-->>GUI: throws InvalidTaskException
+        GUI->>GUI: prints error message
+    else name is valid
+        TM->>TM: adds task to ArrayList
+        GUI->>DB: saveTask(task)
+        DB->>SQLite: INSERT INTO tasks(...)
+        GUI->>DB: getAllTasks()
+        DB->>SQLite: SELECT * FROM tasks
+        SQLite-->>DB: returns rows
+        DB-->>GUI: returns List of Tasks
+        GUI->>GUI: updates ListView
+    end
+```
+
+This diagram is also useful for the oral discussion — it shows you understand the full flow, not just individual files.
+
 ### The lifecycle
 
 1. `main.java` calls `Application.launch(TaskManagerApp.class)`
@@ -139,6 +177,45 @@ The getters and setters already exist, so nothing else breaks. But now go throug
 **Where:** New file `Displayable.java` in the same package, then edit `Task.java`.
 
 **Why:** The project requires "inheritance or interfaces" and "polymorphism." An interface is a contract — it says "any class that implements me must have these methods." Polymorphism means you can treat different types through the same interface. The professor wants to see that you understand these concepts, not just use basic classes.
+
+Here's what the class structure should look like after you're done:
+
+```mermaid
+classDiagram
+    class Displayable {
+        <<interface>>
+        +getDisplayText() String
+    }
+    class Task {
+        -int id
+        -String name
+        -String description
+        -boolean completed
+        +getId() int
+        +getName() String
+        +getDescription() String
+        +isCompleted() boolean
+        +setCompleted(boolean)
+        +markDone()
+        +getDisplayText() String
+    }
+    class Taskmanger {
+        -ArrayList~Task~ tasks
+        +addTask(Task) throws InvalidTaskException
+        +deleteTask(int)
+        +showTasks()
+    }
+    class InvalidTaskException {
+        +InvalidTaskException(String)
+    }
+
+    Displayable <|.. Task : implements
+    InvalidTaskException --|> Exception : extends
+    Taskmanger --> Task : manages
+    Taskmanger ..> InvalidTaskException : throws
+```
+
+Notice: the `-` means private, `+` means public. The dashed arrow with "implements" is the interface relationship.
 
 **How — Step 1:** Create `Displayable.java`:
 ```java
